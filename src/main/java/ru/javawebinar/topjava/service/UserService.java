@@ -17,6 +17,7 @@ public class UserService {
 
     private final UserRepository repository;
 
+    // @Qualifier("dataJpaUserRepository")
     public UserService(UserRepository repository) {
         this.repository = repository;
     }
