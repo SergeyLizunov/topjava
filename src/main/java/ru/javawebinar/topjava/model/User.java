@@ -1,10 +1,14 @@
 package ru.javawebinar.topjava.model;
 
+import com.fasterxml.jackson.annotation.JsonProperty;
+import io.swagger.annotations.ApiModelProperty;
 import org.hibernate.annotations.Cache;
 import org.hibernate.annotations.*;
 import org.hibernate.validator.constraints.Range;
 import org.springframework.util.CollectionUtils;
-import com.fasterxml.jackson.annotation.JsonManagedReference;
+import ru.javawebinar.topjava.HasIdAndEmail;
+import ru.javawebinar.topjava.View;
+import ru.javawebinar.topjava.util.validation.NoHtml;
 
 import javax.persistence.Entity;
 import javax.persistence.NamedQueries;
@@ -28,7 +32,7 @@ import static ru.javawebinar.topjava.util.UsersUtil.DEFAULT_CALORIES_PER_DAY;
 })
 @Entity
 @Table(name = "users")
-public class User extends AbstractNamedEntity {
+public class User extends AbstractNamedEntity implements HasIdAndEmail {
 
     public static final String DELETE = "User.delete";
     public static final String BY_EMAIL = "User.getByEmail";
@@ -38,11 +42,14 @@ public class User extends AbstractNamedEntity {
     @Email
     @NotBlank
     @Size(max = 128)
+    @NoHtml(groups = {View.Web.class})  // https://stackoverflow.com/questions/17480809
     private String email;
 
     @Column(name = "password", nullable = false)
     @NotBlank
     @Size(min = 5, max = 128)
+    // https://stackoverflow.com/a/12505165/548473
+    @JsonProperty(access = JsonProperty.Access.WRITE_ONLY)
     private String password;
 
     @Column(name = "enabled", nullable = false, columnDefinition = "bool default true")
@@ -50,6 +57,7 @@ public class User extends AbstractNamedEntity {
 
     @Column(name = "registered", nullable = false, columnDefinition = "timestamp default now()", updatable = false)
     @NotNull
+    @JsonProperty(access = JsonProperty.Access.READ_ONLY)
     private Date registered = new Date();
 
     @Cache(usage = CacheConcurrencyStrategy.NONSTRICT_READ_WRITE)
@@ -58,7 +66,7 @@ public class User extends AbstractNamedEntity {
             uniqueConstraints = {@UniqueConstraint(columnNames = {"user_id", "role"}, name = "uk_user_roles")})
     @Column(name = "role")
     @ElementCollection(fetch = FetchType.EAGER)
-//    @Fetch(FetchMode.SUBSELECT)
+    //    @Fetch(FetchMode.SUBSELECT)
     @BatchSize(size = 200)
     @JoinColumn
     @OnDelete(action = OnDeleteAction.CASCADE)
@@ -71,7 +79,7 @@ public class User extends AbstractNamedEntity {
     @OneToMany(fetch = FetchType.LAZY, mappedBy = "user")//, cascade = CascadeType.REMOVE, orphanRemoval = true)
     @OrderBy("dateTime DESC")
     @OnDelete(action = OnDeleteAction.CASCADE) //https://stackoverflow.com/a/44988100/548473
-    @JsonManagedReference
+    @ApiModelProperty(hidden = true)
     private List<Meal> meals;
 
     public User() {
@@ -81,8 +89,8 @@ public class User extends AbstractNamedEntity {
         this(u.id, u.name, u.email, u.password, u.caloriesPerDay, u.enabled, u.registered, u.roles);
     }
 
-    public User(Integer id, String name, String email, String password, Role... roles) {
-        this(id, name, email, password, DEFAULT_CALORIES_PER_DAY, true, new Date(), Arrays.asList(roles));
+    public User(Integer id, String name, String email, String password, int caloriesPerDay, Role... roles) {
+        this(id, name, email, password, caloriesPerDay, true, new Date(), Arrays.asList((roles)));
     }
 
     public User(Integer id, String name, String email, String password, int caloriesPerDay, boolean enabled, Date registered, Collection<Role> roles) {
@@ -95,6 +103,7 @@ public class User extends AbstractNamedEntity {
         setRoles(roles);
     }
 
+    @Override
     public String getEmail() {
         return email;
     }
